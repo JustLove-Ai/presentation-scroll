@@ -1,0 +1,106 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// Main presentation model
+model Presentation {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  themeId     String?  @db.ObjectId
+  theme       Theme?   @relation(fields: [themeId], references: [id])
+  slides      Slide[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("presentations")
+}
+
+// Individual slide model
+model Slide {
+  id             String        @id @default(auto()) @map("_id") @db.ObjectId
+  presentationId String        @db.ObjectId
+  presentation   Presentation  @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  order          Int
+  layout         String        @default("blank") // blank, title, title-content, two-column, etc.
+  background     Json?         // { type: 'color' | 'gradient' | 'image', value: string }
+  blocks         SlideBlock[]
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@map("slides")
+}
+
+// Content blocks within slides (Notion-style)
+model SlideBlock {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  slideId   String   @db.ObjectId
+  slide     Slide    @relation(fields: [slideId], references: [id], onDelete: Cascade)
+  type      String   // text, heading, image, video, code, bullet-list, numbered-list, quote
+  content   Json     // Flexible content storage
+  order     Int
+  style     Json?    // Font, color, alignment, size, etc.
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("slide_blocks")
+}
+
+// Theme/Design system
+model Theme {
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  description   String?
+  isDefault     Boolean        @default(false)
+
+  // Color palette
+  colors        Json           // { primary, secondary, accent, background, text, etc. }
+
+  // Typography
+  fonts         Json           // { heading, body, code }
+
+  // Layout defaults
+  spacing       Json?          // Padding, margins
+
+  presentations Presentation[]
+  templates     Template[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("themes")
+}
+
+// Pre-built slide templates
+model Template {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  category    String   // business, education, creative, minimal, etc.
+  themeId     String?  @db.ObjectId
+  theme       Theme?   @relation(fields: [themeId], references: [id])
+  preview     String?  // URL to preview image
+
+  // Template structure (JSON with slide layouts and default content)
+  structure   Json
+
+  isPremium   Boolean  @default(false)
+  isPublic    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("templates")
+}
