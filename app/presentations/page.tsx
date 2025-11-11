@@ -4,13 +4,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Plus, Presentation } from "lucide-react";
 import Link from "next/link";
 import { CreatePresentationDialog } from "@/components/presentations/create-presentation-dialog";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default async function PresentationsPage() {
   const result = await getPresentations();
   const presentations = result.success ? result.data : [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-white dark:bg-[#0a0a0a]">
       <div className="container mx-auto py-8 px-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -22,7 +23,10 @@ export default async function PresentationsPage() {
               Create and manage your beautiful slide decks
             </p>
           </div>
-          <CreatePresentationDialog />
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <CreatePresentationDialog />
+          </div>
         </div>
 
         {/* Presentations Grid */}

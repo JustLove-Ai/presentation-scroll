@@ -192,7 +192,7 @@ export function EditableSlideRenderer({
 
   return (
     <Card
-      className="w-full aspect-[16/9] shadow-xl rounded-lg relative overflow-hidden border border-gray-200 bg-white hover:shadow-2xl transition-shadow"
+      className="w-full aspect-[16/9] shadow-xl rounded-lg relative overflow-hidden border border-gray-200 dark:border-[#2a2a2a] !bg-white hover:shadow-2xl transition-shadow p-0"
       style={{
         ...backgroundStyle,
         color: themeColors.text,

@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Plus, ArrowLeft, Trash2, GripVertical, Settings, LayoutTemplate } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createSlide, deleteSlide, updateSlide } from "@/lib/actions/slides";
-import { createBlock, updateBlock } from "@/lib/actions/blocks";
+import { createBlock, updateBlock, deleteBlock } from "@/lib/actions/blocks";
 import { slideTemplates } from "@/lib/slide-templates";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -15,6 +15,7 @@ import { TextFormatPanel } from "./text-format-panel";
 import { ImageEditPanel } from "./image-edit-panel";
 import { BlocksVisibilityPanel } from "./blocks-visibility-panel";
 import { motion, AnimatePresence } from "framer-motion";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 interface SlideEditorProps {
   presentation: any;
@@ -56,6 +57,16 @@ export function SlideEditor({ presentation }: SlideEditorProps) {
 
     const template = slideTemplates.find((t) => t.id === templateId);
     if (!template) return;
+
+    // Get the selected slide to access its blocks
+    const slide = presentation.slides.find((s: any) => s.id === selectedSlideId);
+
+    // Delete all existing blocks first
+    if (slide && slide.blocks) {
+      for (const block of slide.blocks) {
+        await deleteBlock(block.id);
+      }
+    }
 
     // Update slide layout
     await updateSlide(selectedSlideId, {
@@ -105,9 +116,9 @@ export function SlideEditor({ presentation }: SlideEditorProps) {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="h-screen flex flex-col bg-neutral-50 dark:bg-[#0f0f0f]">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between z-50">
+      <header className="bg-white dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-6 py-3 flex items-center justify-between z-50">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -126,6 +137,7 @@ export function SlideEditor({ presentation }: SlideEditorProps) {
         </div>
 
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <Button
             variant={showSettings ? "secondary" : "outline"}
             size="sm"
@@ -155,7 +167,7 @@ export function SlideEditor({ presentation }: SlideEditorProps) {
                 <div key={slide.id}>
                   <div
                     className={`relative group cursor-pointer ${
-                      selectedSlideId === slide.id ? "ring-2 ring-blue-500 ring-offset-4 rounded-lg" : ""
+                      selectedSlideId === slide.id ? "ring-2 ring-neutral-900 dark:ring-neutral-100 ring-offset-4 dark:ring-offset-[#0f0f0f] rounded-lg" : ""
                     }`}
                     onClick={() => setSelectedSlideId(slide.id)}
                   >
@@ -164,7 +176,7 @@ export function SlideEditor({ presentation }: SlideEditorProps) {
                       <div className="flex items-center gap-2">
                         <GripVertical className="h-4 w-4 text-gray-400" />
                         <span className="text-sm font-medium">Slide {index + 1}</span>
-                        <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-600">
+                        <span className="text-xs px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">
                           {slide.layout || "blank"}
                         </span>
                       </div>
@@ -226,7 +238,7 @@ export function SlideEditor({ presentation }: SlideEditorProps) {
 
         {/* Right Sidebar - Context-Aware Panels */}
         {showSettings && (
-          <div className="w-80 bg-white border-l border-gray-200 flex flex-col overflow-hidden">
+          <div className="w-80 bg-white dark:bg-[#111111] border-l border-gray-200 dark:border-[#222222] flex flex-col overflow-hidden">
             <AnimatePresence mode="wait">
               {/* Text Format Panel */}
               {selectedBlock && ["text", "heading", "quote"].includes(selectedBlock.type) && (

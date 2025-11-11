@@ -61,7 +61,7 @@ export const slideTemplates: SlideTemplate[] = [
       },
       {
         type: "image",
-        content: { url: "https://images.unsplash.com/photo-1557683316-973673baf926?w=800", alt: "Placeholder" },
+        content: { url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600'%3E%3Crect width='800' height='600' fill='%23D1D5DB'/%3E%3C/svg%3E", alt: "Placeholder" },
         order: 2,
         style: { position: "absolute", right: 0, top: 0, width: "45%", height: "100%" },
       },
@@ -76,7 +76,7 @@ export const slideTemplates: SlideTemplate[] = [
     defaultBlocks: [
       {
         type: "image",
-        content: { url: "https://images.unsplash.com/photo-1557683316-973673baf926?w=800", alt: "Placeholder" },
+        content: { url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='600'%3E%3Crect width='800' height='600' fill='%23D1D5DB'/%3E%3C/svg%3E", alt: "Placeholder" },
         order: 0,
         style: { position: "absolute", left: 0, top: 0, width: "45%", height: "100%" },
       },
@@ -103,7 +103,7 @@ export const slideTemplates: SlideTemplate[] = [
     defaultBlocks: [
       {
         type: "image",
-        content: { url: "https://images.unsplash.com/photo-1557683316-973673baf926?w=1600", alt: "Cover" },
+        content: { url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1600' height='900'%3E%3Crect width='1600' height='900' fill='%23D1D5DB'/%3E%3C/svg%3E", alt: "Cover" },
         order: 0,
         style: { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" },
       },
@@ -158,7 +158,7 @@ export const slideTemplates: SlideTemplate[] = [
     defaultBlocks: [
       {
         type: "image",
-        content: { url: "https://images.unsplash.com/photo-1557683316-973673baf926?w=1600", alt: "Image" },
+        content: { url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1600' height='900'%3E%3Crect width='1600' height='900' fill='%23D1D5DB'/%3E%3C/svg%3E", alt: "Image" },
         order: 0,
         style: { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" },
       },

@@ -74,10 +74,10 @@ export function SlideViewer({ presentation }: SlideViewerProps) {
               >
                 {/* Slide Number Badge */}
                 <div className="flex items-center gap-3 mb-4">
-                  <span className="text-sm font-medium text-gray-500">
+                  <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
                     Slide {index + 1}
                   </span>
-                  <span className="text-xs px-2 py-1 rounded-md bg-blue-50 text-blue-600">
+                  <span className="text-xs px-2 py-1 rounded-md bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">
                     CONTENT
                   </span>
                 </div>
@@ -131,8 +131,8 @@ export function SlideViewer({ presentation }: SlideViewerProps) {
             onClick={() => scrollToSlide(index)}
             className={`w-2 h-2 rounded-full transition-all ${
               activeSlide === index
-                ? 'bg-blue-600 w-3 h-3'
-                : 'bg-gray-300 hover:bg-gray-500'
+                ? 'bg-neutral-900 dark:bg-neutral-100 w-3 h-3'
+                : 'bg-neutral-300 dark:bg-neutral-600 hover:bg-neutral-500 dark:hover:bg-neutral-400'
             }`}
             title={`Slide ${index + 1}`}
           />

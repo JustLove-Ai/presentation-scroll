@@ -47,8 +47,8 @@ export function CreatePresentationDialog() {
             onClick={() => handleSelectMode("ai")}
           >
             <CardHeader>
-              <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mb-3">
-                <Sparkles className="h-6 w-6 text-white" />
+              <div className="h-12 w-12 rounded-lg bg-neutral-900 dark:bg-neutral-100 flex items-center justify-center mb-3">
+                <Sparkles className="h-6 w-6 text-white dark:text-neutral-900" />
               </div>
               <CardTitle className="text-lg">AI Generation</CardTitle>
               <CardDescription className="text-sm">
@@ -68,8 +68,8 @@ export function CreatePresentationDialog() {
             onClick={() => handleSelectMode("manual")}
           >
             <CardHeader>
-              <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center mb-3">
-                <PenTool className="h-6 w-6 text-white" />
+              <div className="h-12 w-12 rounded-lg bg-neutral-900 dark:bg-neutral-100 flex items-center justify-center mb-3">
+                <PenTool className="h-6 w-6 text-white dark:text-neutral-900" />
               </div>
               <CardTitle className="text-lg">Start from Scratch</CardTitle>
               <CardDescription className="text-sm">
@@ -89,8 +89,8 @@ export function CreatePresentationDialog() {
             onClick={() => handleSelectMode("template")}
           >
             <CardHeader>
-              <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center mb-3">
-                <LayoutTemplate className="h-6 w-6 text-white" />
+              <div className="h-12 w-12 rounded-lg bg-neutral-900 dark:bg-neutral-100 flex items-center justify-center mb-3">
+                <LayoutTemplate className="h-6 w-6 text-white dark:text-neutral-900" />
               </div>
               <CardTitle className="text-lg">Use Template</CardTitle>
               <CardDescription className="text-sm">
