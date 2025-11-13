@@ -178,6 +178,8 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
 
       if (result.success) {
         console.log('[SlideEditor] ✓ Annotations saved successfully to database');
+        // Refresh to reload data from server so annotations persist after navigation
+        router.refresh();
       } else {
         console.error('[SlideEditor] ✗ Save failed:', result.error);
       }
