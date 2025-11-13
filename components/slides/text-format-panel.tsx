@@ -86,21 +86,15 @@ export function TextFormatPanel({ block, onStyleChange, onContentChange, onSelec
     setTextContent(newText);
   };
 
-  // Debounced save when text content changes
-  useEffect(() => {
-    if (textContent === currentContent.text) return;
-
-    const timeoutId = setTimeout(() => {
-      if (onContentChange) {
-        onContentChange({
-          ...currentContent,
-          text: textContent,
-        });
-      }
-    }, 300); // Debounce for 300ms
-
-    return () => clearTimeout(timeoutId);
-  }, [textContent]);
+  // Save when user finishes editing (on blur)
+  const handleBlur = () => {
+    if (textContent !== currentContent.text && onContentChange) {
+      onContentChange({
+        ...currentContent,
+        text: textContent,
+      });
+    }
+  };
 
   return (
     <motion.div
@@ -151,11 +145,12 @@ export function TextFormatPanel({ block, onStyleChange, onContentChange, onSelec
                 <Textarea
                   value={textContent}
                   onChange={(e) => handleContentChange(e.target.value)}
+                  onBlur={handleBlur}
                   placeholder="Enter your text here..."
                   className="min-h-[300px] resize-none font-sans"
                 />
                 <p className="text-xs text-muted-foreground mt-2">
-                  Changes are saved automatically
+                  Changes saved when you finish editing
                 </p>
               </div>
 

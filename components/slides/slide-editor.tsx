@@ -40,6 +40,9 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
   const [isAnnotating, setIsAnnotating] = useState(false);
   const [deleteSlideId, setDeleteSlideId] = useState<string | null>(null);
 
+  // Local content cache - preserves user content across template changes
+  const blockContentCache = useRef<Map<string, Map<string, any>>>(new Map());
+
   // SHARED STATE: Current annotation strokes for each slide
   // This is the single source of truth that both AnnotationLayer and AnnotationDisplay read from
   const [slideAnnotations, setSlideAnnotations] = useState<Record<string, AnnotationStroke[]>>(() => {
@@ -185,15 +188,17 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
       return;
     }
 
-    // Extract existing content BEFORE deleting blocks
-    const existingContent = new Map<string, any[]>();
+    // Get or create content cache for this slide
+    if (!blockContentCache.current.has(selectedSlideId)) {
+      blockContentCache.current.set(selectedSlideId, new Map());
+    }
+    const slideCache = blockContentCache.current.get(selectedSlideId)!;
+
+    // Save current content to cache BEFORE deleting blocks
     if (slide.blocks && slide.blocks.length > 0) {
       slide.blocks.forEach((block: any) => {
-        // Store content by block type for reuse
-        if (!existingContent.has(block.type)) {
-          existingContent.set(block.type, []);
-        }
-        existingContent.get(block.type)!.push(block.content);
+        // Cache content by type, keep most recent
+        slideCache.set(block.type, block.content);
       });
 
       // Delete all existing blocks and wait for completion
@@ -205,22 +210,11 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
       layout: template.layout,
     });
 
-    // Create blocks from template, reusing existing content where possible
-    const usedContent = new Map<string, number>(); // Track which content we've used
-
-    // Create all blocks in sequence to avoid race conditions
+    // Create blocks from template, using cached content when available
     for (const blockData of template.defaultBlocks) {
-      let contentToUse = blockData.content;
-
-      // Try to reuse existing content of the same type (only first match)
-      const existingOfType = existingContent.get(blockData.type);
-      if (existingOfType && existingOfType.length > 0) {
-        const usedIndex = usedContent.get(blockData.type) || 0;
-        if (usedIndex < existingOfType.length) {
-          contentToUse = existingOfType[usedIndex];
-          usedContent.set(blockData.type, usedIndex + 1);
-        }
-      }
+      // Check cache first - if user has edited content of this type, use it
+      const cachedContent = slideCache.get(blockData.type);
+      const contentToUse = cachedContent || blockData.content;
 
       await createBlock({
         slideId: selectedSlideId,
@@ -244,7 +238,24 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
   };
 
   const handleBlockContentChange = async (blockId: string, content: any) => {
-    // Save to server (debounced from TextFormatPanel)
+    // Update content cache so template switches preserve edits
+    if (selectedSlideId) {
+      if (!blockContentCache.current.has(selectedSlideId)) {
+        blockContentCache.current.set(selectedSlideId, new Map());
+      }
+      const slideCache = blockContentCache.current.get(selectedSlideId)!;
+
+      // Find block type to cache content properly
+      const block = slides
+        .find((s: any) => s.id === selectedSlideId)
+        ?.blocks.find((b: any) => b.id === blockId);
+
+      if (block) {
+        slideCache.set(block.type, content);
+      }
+    }
+
+    // Save to server (triggered on blur from TextFormatPanel)
     await updateBlock(blockId, { content });
     // Don't refresh immediately - let local state handle updates for smooth typing
     // Refresh will happen when user closes the panel or navigates away
