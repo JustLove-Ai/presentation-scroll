@@ -167,22 +167,27 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
 
     // Get the selected slide to access its blocks
     const slide = slides.find((s: any) => s.id === selectedSlideId);
+    if (!slide) return;
+
+    // Check if already on this template - don't recreate blocks
+    if (slide.layout === template.layout) {
+      toast.info("Already using this template");
+      return;
+    }
 
     // Extract existing content BEFORE deleting blocks
-    const existingContent = new Map<string, any>();
-    if (slide && slide.blocks) {
+    const existingContent = new Map<string, any[]>();
+    if (slide.blocks && slide.blocks.length > 0) {
       slide.blocks.forEach((block: any) => {
         // Store content by block type for reuse
         if (!existingContent.has(block.type)) {
           existingContent.set(block.type, []);
         }
-        existingContent.get(block.type).push(block.content);
+        existingContent.get(block.type)!.push(block.content);
       });
 
-      // Delete all existing blocks
-      for (const block of slide.blocks) {
-        await deleteBlock(block.id);
-      }
+      // Delete all existing blocks and wait for completion
+      await Promise.all(slide.blocks.map((block: any) => deleteBlock(block.id)));
     }
 
     // Update slide layout
@@ -193,10 +198,11 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
     // Create blocks from template, reusing existing content where possible
     const usedContent = new Map<string, number>(); // Track which content we've used
 
+    // Create all blocks in sequence to avoid race conditions
     for (const blockData of template.defaultBlocks) {
       let contentToUse = blockData.content;
 
-      // Try to reuse existing content of the same type
+      // Try to reuse existing content of the same type (only first match)
       const existingOfType = existingContent.get(blockData.type);
       if (existingOfType && existingOfType.length > 0) {
         const usedIndex = usedContent.get(blockData.type) || 0;
