@@ -111,14 +111,28 @@ export function AnnotationDisplay({ strokes }: AnnotationDisplayProps) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Set canvas size to match parent
     const parent = canvas.parentElement;
-    if (parent) {
+    if (!parent) return;
+
+    // Set initial canvas size
+    const resizeCanvas = () => {
       canvas.width = parent.offsetWidth;
       canvas.height = parent.offsetHeight;
-    }
+      redrawCanvas();
+    };
 
-    redrawCanvas();
+    resizeCanvas();
+
+    // Watch for parent size changes
+    const resizeObserver = new ResizeObserver(() => {
+      resizeCanvas();
+    });
+
+    resizeObserver.observe(parent);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
   }, [redrawCanvas]);
 
   if (!strokes || strokes.length === 0) return null;
@@ -127,7 +141,7 @@ export function AnnotationDisplay({ strokes }: AnnotationDisplayProps) {
     <canvas
       ref={canvasRef}
       className="absolute inset-0 pointer-events-none"
-      style={{ zIndex: 10 }}
+      style={{ zIndex: 999 }}
     />
   );
 }

@@ -137,14 +137,28 @@ export function AnnotationCanvas({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Set canvas size to match parent
     const parent = canvas.parentElement;
-    if (parent) {
+    if (!parent) return;
+
+    // Set initial canvas size
+    const resizeCanvas = () => {
       canvas.width = parent.offsetWidth;
       canvas.height = parent.offsetHeight;
-    }
+      redrawCanvas();
+    };
 
-    redrawCanvas();
+    resizeCanvas();
+
+    // Watch for parent size changes
+    const resizeObserver = new ResizeObserver(() => {
+      resizeCanvas();
+    });
+
+    resizeObserver.observe(parent);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
   }, [redrawCanvas]);
 
   const getCanvasPoint = (e: React.MouseEvent<HTMLCanvasElement>) => {

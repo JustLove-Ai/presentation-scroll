@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Plus, ArrowLeft, Trash2, GripVertical, Settings, LayoutTemplate, Pencil } from "lucide-react";
@@ -53,16 +53,32 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
   });
 
   // Sync presentation state with prop changes (e.g., after router.refresh())
+  // Use a ref to track the last saved state to prevent race conditions
+  const lastSavedAnnotations = useRef<Record<string, number>>({});
+
   useEffect(() => {
     console.log('[SlideEditor] useEffect - syncing with new presentation data');
     setPresentation(initialPresentation);
-    // Also sync annotations from database
+
+    // Sync annotations from database, but preserve local state if it's newer
     const updated: Record<string, AnnotationStroke[]> = {};
     initialPresentation.slides.forEach((slide: any) => {
-      updated[slide.id] = slide.annotations || [];
+      const dbAnnotations = slide.annotations || [];
+      const currentAnnotations = slideAnnotations[slide.id] || [];
+
+      // Only update if database has more annotations OR if we just saved
+      // This prevents overwriting unsaved local changes
+      const shouldUpdate =
+        dbAnnotations.length >= currentAnnotations.length ||
+        lastSavedAnnotations.current[slide.id] === currentAnnotations.length;
+
+      updated[slide.id] = shouldUpdate ? dbAnnotations : currentAnnotations;
+
       console.log('[SlideEditor] useEffect - syncing slide:', {
         slideId: slide.id,
-        annotationCount: updated[slide.id].length
+        dbCount: dbAnnotations.length,
+        currentCount: currentAnnotations.length,
+        usingDb: shouldUpdate
       });
     });
     setSlideAnnotations(updated);
@@ -71,6 +87,42 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
 
   // Get slides from current presentation state
   const slides = presentation.slides;
+
+  // Auto-save annotations before component unmounts (navigation away, page close, etc.)
+  useEffect(() => {
+    return () => {
+      // Cleanup function - save any unsaved annotations
+      if (isAnnotating && selectedSlideId) {
+        const currentStrokes = slideAnnotations[selectedSlideId] || [];
+        if (currentStrokes.length > 0) {
+          console.log('[SlideEditor] Component unmounting - saving annotations');
+          // Note: This is async but we can't await in cleanup
+          // The save will attempt but might not complete if page closes immediately
+          saveAnnotations(selectedSlideId, currentStrokes);
+        }
+      }
+    };
+  }, [isAnnotating, selectedSlideId, slideAnnotations]);
+
+  // Save annotations on page refresh/close
+  useEffect(() => {
+    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
+      if (isAnnotating && selectedSlideId) {
+        const currentStrokes = slideAnnotations[selectedSlideId] || [];
+        if (currentStrokes.length > 0) {
+          console.log('[SlideEditor] Page unloading - saving annotations');
+          // Try to save (may not complete if browser force-closes)
+          await saveAnnotations(selectedSlideId, currentStrokes);
+          // Show warning to give save time to complete
+          e.preventDefault();
+          e.returnValue = '';
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isAnnotating, selectedSlideId, slideAnnotations]);
 
   const handleAddSlide = async (afterIndex?: number) => {
     setIsAdding(true);
@@ -170,6 +222,9 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
   const handleAnnotationsSave = async (slideId: string, strokes: AnnotationStroke[]) => {
     console.log('[SlideEditor] Saving annotations to database:', { slideId, strokeCount: strokes.length });
 
+    // Track that we're saving this many annotations for this slide
+    lastSavedAnnotations.current[slideId] = strokes.length;
+
     // Annotations are already visible via shared state
     // Save to database and WAIT for it to complete
     try {
@@ -182,10 +237,26 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
         router.refresh();
       } else {
         console.error('[SlideEditor] ✗ Save failed:', result.error);
+        // Clear the saved tracking since save failed
+        delete lastSavedAnnotations.current[slideId];
       }
     } catch (error) {
       console.error('[SlideEditor] ✗ Save threw error:', error);
+      // Clear the saved tracking since save failed
+      delete lastSavedAnnotations.current[slideId];
     }
+  };
+
+  // Handle toggling annotation mode from header - SAVE when turning OFF
+  const handleAnnotateToggle = async () => {
+    if (isAnnotating && selectedSlideId) {
+      // Turning OFF annotation mode - save current annotations first
+      console.log('[SlideEditor] Toggling annotation mode OFF - saving first');
+      const currentStrokes = slideAnnotations[selectedSlideId] || [];
+      await handleAnnotationsSave(selectedSlideId, currentStrokes);
+    }
+    // Toggle the annotation mode
+    setIsAnnotating(!isAnnotating);
   };
 
   return (
@@ -195,7 +266,7 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
         presentation={presentation}
         mode="edit"
         isAnnotating={isAnnotating}
-        onAnnotateToggle={() => setIsAnnotating(!isAnnotating)}
+        onAnnotateToggle={handleAnnotateToggle}
         showSettings={showSettings}
         onToggleSettings={() => setShowSettings(!showSettings)}
       />
@@ -251,7 +322,8 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
                         }}
                       />
                       {/* Always show annotations in display mode - READS FROM SHARED STATE */}
-                      {(!isAnnotating || selectedSlideId !== slide.id) &&
+                      {/* Only hide annotations when actively drawing on THIS specific slide */}
+                      {!(isAnnotating && selectedSlideId === slide.id) &&
                        slideAnnotations[slide.id]?.length > 0 && (
                         <>
                           {console.log(`[SlideEditor] Rendering annotations from SHARED STATE for slide ${slide.id}:`, slideAnnotations[slide.id]?.length, 'strokes')}
