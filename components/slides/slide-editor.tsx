@@ -91,6 +91,16 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
   // Get slides from current presentation state
   const slides = presentation.slides;
 
+  // Refresh when user closes the editing panel to sync server state
+  const previousBlockId = useRef<string | null>(selectedBlockId);
+  useEffect(() => {
+    // If we had a block selected and now we don't (panel closed), refresh
+    if (previousBlockId.current && !selectedBlockId) {
+      router.refresh();
+    }
+    previousBlockId.current = selectedBlockId;
+  }, [selectedBlockId, router]);
+
   // Auto-save annotations before component unmounts (navigation away, page close, etc.)
   useEffect(() => {
     return () => {
@@ -234,10 +244,10 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
   };
 
   const handleBlockContentChange = async (blockId: string, content: any) => {
-    // Save to server
+    // Save to server (debounced from TextFormatPanel)
     await updateBlock(blockId, { content });
-    // Refresh to update the view
-    router.refresh();
+    // Don't refresh immediately - let local state handle updates for smooth typing
+    // Refresh will happen when user closes the panel or navigates away
   };
 
   const handleBlockVisibilityChange = async (blockId: string, visible: boolean) => {
