@@ -23,6 +23,8 @@ import { AnnotationStroke } from "@/components/annotations/annotation-canvas";
 import { PresentationHeader } from "@/components/presentations/presentation-header";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "sonner";
+import { DesignPanel } from "./design-panel";
+import { DesignTheme } from "@/lib/design-themes";
 
 interface SlideEditorProps {
   presentation: any;
@@ -267,6 +269,109 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
     router.refresh();
   };
 
+  // Apply design theme to current slide
+  const handleApplyDesignToSlide = async (theme: DesignTheme) => {
+    if (!selectedSlideId) return;
+
+    const slide = slides.find((s: any) => s.id === selectedSlideId);
+    if (!slide) return;
+
+    // Update slide background
+    await updateSlide(selectedSlideId, {
+      background: theme.background,
+    });
+
+    // Update all blocks with theme colors and styles
+    if (slide.blocks && slide.blocks.length > 0) {
+      for (const block of slide.blocks) {
+        const updatedStyle = {
+          ...block.style,
+          color: block.type === "heading" ? theme.headingColor || theme.textColor : theme.textColor,
+        };
+
+        // Apply title styling to headings
+        if (block.type === "heading" && theme.titleStyle) {
+          if (theme.titleStyle.underline) {
+            updatedStyle.borderBottom = `3px solid ${theme.accentColor}`;
+            updatedStyle.paddingBottom = "0.5rem";
+            updatedStyle.display = "inline-block";
+          }
+          if (theme.titleStyle.leftBar) {
+            updatedStyle.borderLeft = `4px solid ${theme.accentColor}`;
+            updatedStyle.paddingLeft = "1rem";
+          }
+          if (theme.titleStyle.background) {
+            updatedStyle.background = theme.titleStyle.background;
+            updatedStyle.padding = "1rem";
+            updatedStyle.borderRadius = "8px";
+          }
+        }
+
+        // Apply image borders
+        if (block.type === "image" && theme.imageBorder) {
+          updatedStyle.border = `${theme.imageBorder.width} solid ${theme.imageBorder.color}`;
+          updatedStyle.borderRadius = theme.imageBorder.radius || "0px";
+        }
+
+        await updateBlock(block.id, { style: updatedStyle });
+      }
+    }
+
+    toast.success(`Applied "${theme.name}" to this slide`);
+    router.refresh();
+  };
+
+  // Apply design theme to all slides
+  const handleApplyDesignToAll = async (theme: DesignTheme) => {
+    if (!slides || slides.length === 0) return;
+
+    for (const slide of slides) {
+      // Update slide background
+      await updateSlide(slide.id, {
+        background: theme.background,
+      });
+
+      // Update all blocks in this slide
+      if (slide.blocks && slide.blocks.length > 0) {
+        for (const block of slide.blocks) {
+          const updatedStyle = {
+            ...block.style,
+            color: block.type === "heading" ? theme.headingColor || theme.textColor : theme.textColor,
+          };
+
+          // Apply title styling to headings
+          if (block.type === "heading" && theme.titleStyle) {
+            if (theme.titleStyle.underline) {
+              updatedStyle.borderBottom = `3px solid ${theme.accentColor}`;
+              updatedStyle.paddingBottom = "0.5rem";
+              updatedStyle.display = "inline-block";
+            }
+            if (theme.titleStyle.leftBar) {
+              updatedStyle.borderLeft = `4px solid ${theme.accentColor}`;
+              updatedStyle.paddingLeft = "1rem";
+            }
+            if (theme.titleStyle.background) {
+              updatedStyle.background = theme.titleStyle.background;
+              updatedStyle.padding = "1rem";
+              updatedStyle.borderRadius = "8px";
+            }
+          }
+
+          // Apply image borders
+          if (block.type === "image" && theme.imageBorder) {
+            updatedStyle.border = `${theme.imageBorder.width} solid ${theme.imageBorder.color}`;
+            updatedStyle.borderRadius = theme.imageBorder.radius || "0px";
+          }
+
+          await updateBlock(block.id, { style: updatedStyle });
+        }
+      }
+    }
+
+    toast.success(`Applied "${theme.name}" to all slides`);
+    router.refresh();
+  };
+
   // Determine panel type based on selected block
   const getPanelType = () => {
     if (!selectedBlock) return "templates";
@@ -475,8 +580,9 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
                   className="flex-1 flex flex-col overflow-hidden"
                 >
                   <Tabs defaultValue="templates" className="flex-1 flex flex-col">
-                    <TabsList className="grid w-full grid-cols-2 m-4">
+                    <TabsList className="grid w-full grid-cols-3 m-4">
                       <TabsTrigger value="templates">Templates</TabsTrigger>
+                      <TabsTrigger value="design">Design</TabsTrigger>
                       <TabsTrigger value="blocks">Blocks</TabsTrigger>
                     </TabsList>
 
@@ -517,6 +623,15 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
                           })}
                         </div>
                       </ScrollArea>
+                    </TabsContent>
+
+                    {/* Design Tab */}
+                    <TabsContent value="design" className="flex-1 overflow-hidden m-0">
+                      <DesignPanel
+                        onApplyToSlide={(theme) => handleApplyDesignToSlide(theme)}
+                        onApplyToAll={(theme) => handleApplyDesignToAll(theme)}
+                        currentSlideThemeId={selectedSlide.themeId}
+                      />
                     </TabsContent>
 
                     {/* Blocks Visibility Tab */}
