@@ -276,10 +276,17 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
     const slide = slides.find((s: any) => s.id === selectedSlideId);
     if (!slide) return;
 
+    console.log('[Design] Applying theme:', theme.name, 'Background:', theme.background);
+
+    // Collect all update promises
+    const updates: Promise<any>[] = [];
+
     // Update slide background
-    await updateSlide(selectedSlideId, {
-      background: theme.background,
-    });
+    updates.push(
+      updateSlide(selectedSlideId, {
+        background: theme.background,
+      })
+    );
 
     // Update all blocks with theme colors and styles
     if (slide.blocks && slide.blocks.length > 0) {
@@ -313,11 +320,14 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
           updatedStyle.borderRadius = theme.imageBorder.radius || "0px";
         }
 
-        await updateBlock(block.id, { style: updatedStyle });
+        updates.push(updateBlock(block.id, { style: updatedStyle }));
       }
     }
 
-    toast.success(`Applied "${theme.name}" to this slide`);
+    // Wait for all updates to complete
+    await Promise.all(updates);
+
+    console.log('[Design] All updates complete, refreshing...');
     router.refresh();
   };
 
@@ -325,11 +335,18 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
   const handleApplyDesignToAll = async (theme: DesignTheme) => {
     if (!slides || slides.length === 0) return;
 
+    console.log('[Design] Applying theme to all slides:', theme.name);
+
+    // Collect all update promises
+    const updates: Promise<any>[] = [];
+
     for (const slide of slides) {
       // Update slide background
-      await updateSlide(slide.id, {
-        background: theme.background,
-      });
+      updates.push(
+        updateSlide(slide.id, {
+          background: theme.background,
+        })
+      );
 
       // Update all blocks in this slide
       if (slide.blocks && slide.blocks.length > 0) {
@@ -363,11 +380,15 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
             updatedStyle.borderRadius = theme.imageBorder.radius || "0px";
           }
 
-          await updateBlock(block.id, { style: updatedStyle });
+          updates.push(updateBlock(block.id, { style: updatedStyle }));
         }
       }
     }
 
+    // Wait for all updates to complete
+    await Promise.all(updates);
+
+    console.log('[Design] All slides updated, refreshing...');
     toast.success(`Applied "${theme.name}" to all slides`);
     router.refresh();
   };
@@ -630,7 +651,6 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
                       <DesignPanel
                         onApplyToSlide={(theme) => handleApplyDesignToSlide(theme)}
                         onApplyToAll={(theme) => handleApplyDesignToAll(theme)}
-                        currentSlideThemeId={selectedSlide.themeId}
                       />
                     </TabsContent>
 
