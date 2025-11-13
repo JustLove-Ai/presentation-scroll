@@ -17,7 +17,7 @@ export default async function EditPresentationPage({
   const presentation = result.data;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#1e1e1e]">
       <SlideEditor presentation={presentation} />
     </div>
   );

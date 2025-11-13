@@ -97,8 +97,8 @@ export default function NewPresentationPage() {
         return;
       }
 
-      // Navigate to the presentation
-      router.push(`/presentations/${result.data.id}`);
+      // Navigate to the presentation in edit mode
+      router.push(`/presentations/${result.data.id}/edit`);
     } catch (err) {
       setError("An unexpected error occurred");
       console.error(err);
@@ -108,7 +108,7 @@ export default function NewPresentationPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#0a0a0a]">
+    <div className="min-h-screen bg-white dark:bg-[#1e1e1e]">
       <div className="container mx-auto py-8 px-4 max-w-3xl">
         {/* Back Button */}
         <Button

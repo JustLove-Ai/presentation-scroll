@@ -38,6 +38,7 @@ model Slide {
   background     Json?         // { type: 'color' | 'gradient' | 'image', value: string }
   blocks         SlideBlock[]
   notes          String?
+  annotations    Json?         // Array of annotation strokes
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 

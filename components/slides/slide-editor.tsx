@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Plus, ArrowLeft, Trash2, GripVertical, Settings, LayoutTemplate } from "lucide-react";
+import { Plus, ArrowLeft, Trash2, GripVertical, Settings, LayoutTemplate, Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createSlide, deleteSlide, updateSlide } from "@/lib/actions/slides";
 import { createBlock, updateBlock, deleteBlock } from "@/lib/actions/blocks";
@@ -16,26 +16,68 @@ import { ImageEditPanel } from "./image-edit-panel";
 import { BlocksVisibilityPanel } from "./blocks-visibility-panel";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AnnotationLayer } from "@/components/annotations/annotation-layer";
+import { AnnotationDisplay } from "@/components/annotations/annotation-display";
+import { saveAnnotations } from "@/lib/actions/annotations";
+import { AnnotationStroke } from "@/components/annotations/annotation-canvas";
+import { PresentationHeader } from "@/components/presentations/presentation-header";
 
 interface SlideEditorProps {
   presentation: any;
 }
 
-export function SlideEditor({ presentation }: SlideEditorProps) {
+export function SlideEditor({ presentation: initialPresentation }: SlideEditorProps) {
   const router = useRouter();
+  const [presentation, setPresentation] = useState(initialPresentation);
   const [isAdding, setIsAdding] = useState(false);
   const [selectedSlideId, setSelectedSlideId] = useState<string | null>(
-    presentation.slides[0]?.id || null
+    initialPresentation.slides[0]?.id || null
   );
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(true);
+  const [isAnnotating, setIsAnnotating] = useState(false);
+
+  // SHARED STATE: Current annotation strokes for each slide
+  // This is the single source of truth that both AnnotationLayer and AnnotationDisplay read from
+  const [slideAnnotations, setSlideAnnotations] = useState<Record<string, AnnotationStroke[]>>(() => {
+    const initial: Record<string, AnnotationStroke[]> = {};
+    initialPresentation.slides.forEach((slide: any) => {
+      initial[slide.id] = slide.annotations || [];
+      console.log('[SlideEditor] Initial load - slide annotations:', {
+        slideId: slide.id,
+        annotationCount: initial[slide.id].length
+      });
+    });
+    console.log('[SlideEditor] Component initialized with annotations for', Object.keys(initial).length, 'slides');
+    return initial;
+  });
+
+  // Sync presentation state with prop changes (e.g., after router.refresh())
+  useEffect(() => {
+    console.log('[SlideEditor] useEffect - syncing with new presentation data');
+    setPresentation(initialPresentation);
+    // Also sync annotations from database
+    const updated: Record<string, AnnotationStroke[]> = {};
+    initialPresentation.slides.forEach((slide: any) => {
+      updated[slide.id] = slide.annotations || [];
+      console.log('[SlideEditor] useEffect - syncing slide:', {
+        slideId: slide.id,
+        annotationCount: updated[slide.id].length
+      });
+    });
+    setSlideAnnotations(updated);
+    console.log('[SlideEditor] useEffect - sync complete, total slides:', Object.keys(updated).length);
+  }, [initialPresentation]);
+
+  // Get slides from current presentation state
+  const slides = presentation.slides;
 
   const handleAddSlide = async (afterIndex?: number) => {
     setIsAdding(true);
     const result = await createSlide({
       presentationId: presentation.id,
       layout: "blank",
-      order: afterIndex !== undefined ? afterIndex + 1 : presentation.slides.length,
+      order: afterIndex !== undefined ? afterIndex + 1 : slides.length,
     });
 
     if (result.success && result.data) {
@@ -59,7 +101,7 @@ export function SlideEditor({ presentation }: SlideEditorProps) {
     if (!template) return;
 
     // Get the selected slide to access its blocks
-    const slide = presentation.slides.find((s: any) => s.id === selectedSlideId);
+    const slide = slides.find((s: any) => s.id === selectedSlideId);
 
     // Delete all existing blocks first
     if (slide && slide.blocks) {
@@ -87,7 +129,7 @@ export function SlideEditor({ presentation }: SlideEditorProps) {
     router.refresh();
   };
 
-  const selectedSlide = presentation.slides.find((s: any) => s.id === selectedSlideId);
+  const selectedSlide = slides.find((s: any) => s.id === selectedSlideId);
   const selectedBlock = selectedSlide?.blocks.find((b: any) => b.id === selectedBlockId);
 
   const handleBlockStyleChange = async (blockId: string, style: any) => {
@@ -115,47 +157,46 @@ export function SlideEditor({ presentation }: SlideEditorProps) {
     return "text";
   };
 
-  return (
-    <div className="h-screen flex flex-col bg-neutral-50 dark:bg-[#0f0f0f]">
-      {/* Header */}
-      <header className="bg-white dark:bg-[#111111] border-b border-gray-200 dark:border-[#222222] px-6 py-3 flex items-center justify-between z-50">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push("/presentations")}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <div>
-            <h1 className="font-semibold">{presentation.title}</h1>
-            <p className="text-xs text-muted-foreground">
-              {presentation.slides.length} slides
-            </p>
-          </div>
-        </div>
+  // Update annotation strokes in real-time as user draws (SHARED STATE)
+  const handleAnnotationsChange = (slideId: string, strokes: AnnotationStroke[]) => {
+    console.log('[SlideEditor] Updating annotations in shared state:', { slideId, strokeCount: strokes.length });
+    setSlideAnnotations(prev => ({
+      ...prev,
+      [slideId]: strokes
+    }));
+  };
 
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <Button
-            variant={showSettings ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => setShowSettings(!showSettings)}
-          >
-            <Settings className="h-4 w-4 mr-2" />
-            {showSettings ? "Hide" : "Show"} Panel
-          </Button>
-          <Button
-            variant="default"
-            size="sm"
-            className="bg-green-600 hover:bg-green-700"
-            onClick={() => router.push(`/presentations/${presentation.id}`)}
-          >
-            Present
-          </Button>
-        </div>
-      </header>
+  // Save annotations to database when user closes annotation mode
+  const handleAnnotationsSave = async (slideId: string, strokes: AnnotationStroke[]) => {
+    console.log('[SlideEditor] Saving annotations to database:', { slideId, strokeCount: strokes.length });
+
+    // Annotations are already visible via shared state
+    // Save to database and WAIT for it to complete
+    try {
+      const result = await saveAnnotations(slideId, strokes);
+      console.log('[SlideEditor] Save result:', result);
+
+      if (result.success) {
+        console.log('[SlideEditor] ✓ Annotations saved successfully to database');
+      } else {
+        console.error('[SlideEditor] ✗ Save failed:', result.error);
+      }
+    } catch (error) {
+      console.error('[SlideEditor] ✗ Save threw error:', error);
+    }
+  };
+
+  return (
+    <div className="h-screen flex flex-col bg-neutral-50 dark:bg-[#1e1e1e]">
+      {/* Header */}
+      <PresentationHeader
+        presentation={presentation}
+        mode="edit"
+        isAnnotating={isAnnotating}
+        onAnnotateToggle={() => setIsAnnotating(!isAnnotating)}
+        showSettings={showSettings}
+        onToggleSettings={() => setShowSettings(!showSettings)}
+      />
 
       {/* Main Editor Area */}
       <div className="flex-1 flex overflow-hidden">
@@ -163,11 +204,11 @@ export function SlideEditor({ presentation }: SlideEditorProps) {
         <div className="flex-1 overflow-auto">
           <div className="container mx-auto px-4 py-8 max-w-6xl">
             <div className="space-y-6">
-              {presentation.slides.map((slide: any, index: number) => (
+              {slides.map((slide: any, index: number) => (
                 <div key={slide.id}>
                   <div
                     className={`relative group cursor-pointer ${
-                      selectedSlideId === slide.id ? "ring-2 ring-neutral-900 dark:ring-neutral-100 ring-offset-4 dark:ring-offset-[#0f0f0f] rounded-lg" : ""
+                      selectedSlideId === slide.id ? "ring-2 ring-neutral-900 dark:ring-neutral-100 ring-offset-4 dark:ring-offset-[#1e1e1e] rounded-lg" : ""
                     }`}
                     onClick={() => setSelectedSlideId(slide.id)}
                   >
@@ -197,15 +238,35 @@ export function SlideEditor({ presentation }: SlideEditorProps) {
                     </div>
 
                     {/* Slide Preview */}
-                    <EditableSlideRenderer
-                      slide={slide}
-                      theme={presentation.theme}
-                      isEditing={true}
-                      onBlockSelect={(blockId) => {
-                        setSelectedSlideId(slide.id);
-                        setSelectedBlockId(blockId);
-                      }}
-                    />
+                    <div className="relative">
+                      <EditableSlideRenderer
+                        slide={slide}
+                        theme={presentation.theme}
+                        isEditing={true}
+                        onBlockSelect={(blockId) => {
+                          setSelectedSlideId(slide.id);
+                          setSelectedBlockId(blockId);
+                        }}
+                      />
+                      {/* Always show annotations in display mode - READS FROM SHARED STATE */}
+                      {(!isAnnotating || selectedSlideId !== slide.id) &&
+                       slideAnnotations[slide.id]?.length > 0 && (
+                        <>
+                          {console.log(`[SlideEditor] Rendering annotations from SHARED STATE for slide ${slide.id}:`, slideAnnotations[slide.id]?.length, 'strokes')}
+                          <AnnotationDisplay strokes={slideAnnotations[slide.id]} />
+                        </>
+                      )}
+                      {/* Show editable annotation layer when annotating this slide - READS/WRITES SHARED STATE */}
+                      {isAnnotating && selectedSlideId === slide.id && (
+                        <AnnotationLayer
+                          isActive={true}
+                          onClose={() => setIsAnnotating(false)}
+                          initialStrokes={slideAnnotations[slide.id] || []}
+                          onSave={(strokes) => handleAnnotationsSave(slide.id, strokes)}
+                          onChange={(strokes) => handleAnnotationsChange(slide.id, strokes)}
+                        />
+                      )}
+                    </div>
                   </div>
 
                   {/* Add Slide Buttons */}
@@ -223,7 +284,7 @@ export function SlideEditor({ presentation }: SlideEditorProps) {
                 </div>
               ))}
 
-              {presentation.slides.length === 0 && (
+              {slides.length === 0 && (
                 <div className="text-center py-20">
                   <p className="text-muted-foreground mb-4">No slides yet</p>
                   <Button onClick={() => handleAddSlide()}>
@@ -238,7 +299,7 @@ export function SlideEditor({ presentation }: SlideEditorProps) {
 
         {/* Right Sidebar - Context-Aware Panels */}
         {showSettings && (
-          <div className="w-80 bg-white dark:bg-[#111111] border-l border-gray-200 dark:border-[#222222] flex flex-col overflow-hidden">
+          <div className="w-80 bg-white dark:bg-[#252525] border-l border-gray-200 dark:border-[#333333] flex flex-col overflow-hidden">
             <AnimatePresence mode="wait">
               {/* Text Format Panel */}
               {selectedBlock && ["text", "heading", "quote"].includes(selectedBlock.type) && (

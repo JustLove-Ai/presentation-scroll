@@ -71,7 +71,29 @@ export async function getPresentation(id: string) {
       return { success: false, error: "Presentation not found" };
     }
 
-    return { success: true, data: presentation };
+    // Normalize annotations to always be an array
+    const normalizedPresentation = {
+      ...presentation,
+      slides: presentation.slides.map(slide => {
+        const annotations = Array.isArray(slide.annotations) ? slide.annotations : [];
+        console.log('[getPresentation] Slide loaded:', {
+          slideId: slide.id,
+          annotationCount: annotations.length
+        });
+        return {
+          ...slide,
+          annotations
+        };
+      })
+    };
+
+    console.log('[getPresentation] Loaded presentation:', {
+      presentationId: id,
+      totalSlides: normalizedPresentation.slides.length,
+      slidesWithAnnotations: normalizedPresentation.slides.filter(s => s.annotations.length > 0).length
+    });
+
+    return { success: true, data: normalizedPresentation };
   } catch (error) {
     console.error("Error fetching presentation:", error);
     return { success: false, error: "Failed to fetch presentation" };
@@ -116,5 +138,66 @@ export async function deletePresentation(id: string) {
   } catch (error) {
     console.error("Error deleting presentation:", error);
     return { success: false, error: "Failed to delete presentation" };
+  }
+}
+
+export async function duplicatePresentation(id: string) {
+  try {
+    // Get the original presentation with all its slides and blocks
+    const original = await prisma.presentation.findUnique({
+      where: { id },
+      include: {
+        slides: {
+          include: {
+            blocks: true,
+          },
+          orderBy: { order: "asc" },
+        },
+      },
+    });
+
+    if (!original) {
+      return { success: false, error: "Presentation not found" };
+    }
+
+    // Create the duplicate presentation
+    const duplicate = await prisma.presentation.create({
+      data: {
+        title: `${original.title} (Copy)`,
+        description: original.description,
+        themeId: original.themeId,
+        slides: {
+          create: original.slides.map((slide) => ({
+            layout: slide.layout,
+            background: slide.background,
+            notes: slide.notes,
+            annotations: slide.annotations,
+            order: slide.order,
+            blocks: {
+              create: slide.blocks.map((block) => ({
+                type: block.type,
+                content: block.content,
+                style: block.style,
+                order: block.order,
+              })),
+            },
+          })),
+        },
+      },
+      include: {
+        theme: true,
+        slides: {
+          include: {
+            blocks: true,
+          },
+        },
+      },
+    });
+
+    revalidatePath("/presentations");
+    return { success: true, data: duplicate };
+  } catch (error) {
+    console.error("Error duplicating presentation:", error);
+    return { success: false, error: "Failed to duplicate presentation" };
   }
 }
