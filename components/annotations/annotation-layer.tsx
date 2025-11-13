@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { AnnotationToolbar, AnnotationTool } from "./annotation-toolbar";
 import { AnnotationCanvas, AnnotationStroke } from "./annotation-canvas";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface AnnotationLayerProps {
   isActive: boolean;
@@ -24,6 +25,7 @@ export function AnnotationLayer({
   const [strokes, setStrokes] = useState<AnnotationStroke[]>(initialStrokes);
   const [history, setHistory] = useState<AnnotationStroke[][]>([initialStrokes]);
   const [historyIndex, setHistoryIndex] = useState(0);
+  const [showClearDialog, setShowClearDialog] = useState(false);
 
   const handleStrokesChange = useCallback((newStrokes: AnnotationStroke[]) => {
     setStrokes(newStrokes);
@@ -65,9 +67,12 @@ export function AnnotationLayer({
   };
 
   const handleClear = () => {
-    if (confirm('Clear all annotations?')) {
-      handleStrokesChange([]);
-    }
+    setShowClearDialog(true);
+  };
+
+  const confirmClear = () => {
+    handleStrokesChange([]);
+    setShowClearDialog(false);
   };
 
   const handleClose = async () => {
@@ -109,6 +114,18 @@ export function AnnotationLayer({
         onClose={handleClose}
         canUndo={historyIndex > 0}
         canRedo={historyIndex < history.length - 1}
+      />
+
+      {/* Clear Annotations Confirmation Dialog */}
+      <ConfirmDialog
+        open={showClearDialog}
+        onOpenChange={setShowClearDialog}
+        onConfirm={confirmClear}
+        title="Clear All Annotations"
+        description="Are you sure you want to clear all annotations? This action cannot be undone."
+        confirmText="Clear"
+        cancelText="Cancel"
+        variant="destructive"
       />
     </>
   );

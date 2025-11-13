@@ -21,6 +21,8 @@ import { AnnotationDisplay } from "@/components/annotations/annotation-display";
 import { saveAnnotations } from "@/lib/actions/annotations";
 import { AnnotationStroke } from "@/components/annotations/annotation-canvas";
 import { PresentationHeader } from "@/components/presentations/presentation-header";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { toast } from "sonner";
 
 interface SlideEditorProps {
   presentation: any;
@@ -36,6 +38,7 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(true);
   const [isAnnotating, setIsAnnotating] = useState(false);
+  const [deleteSlideId, setDeleteSlideId] = useState<string | null>(null);
 
   // SHARED STATE: Current annotation strokes for each slide
   // This is the single source of truth that both AnnotationLayer and AnnotationDisplay read from
@@ -140,10 +143,20 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
   };
 
   const handleDeleteSlide = async (slideId: string) => {
-    if (confirm("Are you sure you want to delete this slide?")) {
-      await deleteSlide(slideId);
+    setDeleteSlideId(slideId);
+  };
+
+  const confirmDeleteSlide = async () => {
+    if (!deleteSlideId) return;
+
+    const result = await deleteSlide(deleteSlideId);
+    if (result.success) {
+      toast.success("Slide deleted successfully");
       router.refresh();
+    } else {
+      toast.error("Failed to delete slide");
     }
+    setDeleteSlideId(null);
   };
 
   const handleApplyTemplate = async (templateId: string) => {
@@ -155,8 +168,18 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
     // Get the selected slide to access its blocks
     const slide = slides.find((s: any) => s.id === selectedSlideId);
 
-    // Delete all existing blocks first
+    // Extract existing content BEFORE deleting blocks
+    const existingContent = new Map<string, any>();
     if (slide && slide.blocks) {
+      slide.blocks.forEach((block: any) => {
+        // Store content by block type for reuse
+        if (!existingContent.has(block.type)) {
+          existingContent.set(block.type, []);
+        }
+        existingContent.get(block.type).push(block.content);
+      });
+
+      // Delete all existing blocks
       for (const block of slide.blocks) {
         await deleteBlock(block.id);
       }
@@ -167,17 +190,32 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
       layout: template.layout,
     });
 
-    // Create blocks from template
+    // Create blocks from template, reusing existing content where possible
+    const usedContent = new Map<string, number>(); // Track which content we've used
+
     for (const blockData of template.defaultBlocks) {
+      let contentToUse = blockData.content;
+
+      // Try to reuse existing content of the same type
+      const existingOfType = existingContent.get(blockData.type);
+      if (existingOfType && existingOfType.length > 0) {
+        const usedIndex = usedContent.get(blockData.type) || 0;
+        if (usedIndex < existingOfType.length) {
+          contentToUse = existingOfType[usedIndex];
+          usedContent.set(blockData.type, usedIndex + 1);
+        }
+      }
+
       await createBlock({
         slideId: selectedSlideId,
         type: blockData.type,
-        content: blockData.content,
+        content: contentToUse,
         style: blockData.style,
         order: blockData.order,
       });
     }
 
+    toast.success("Template applied with your content preserved");
     router.refresh();
   };
 
@@ -233,15 +271,18 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
 
       if (result.success) {
         console.log('[SlideEditor] ✓ Annotations saved successfully to database');
+        toast.success("Annotations saved");
         // Refresh to reload data from server so annotations persist after navigation
         router.refresh();
       } else {
         console.error('[SlideEditor] ✗ Save failed:', result.error);
+        toast.error("Failed to save annotations");
         // Clear the saved tracking since save failed
         delete lastSavedAnnotations.current[slideId];
       }
     } catch (error) {
       console.error('[SlideEditor] ✗ Save threw error:', error);
+      toast.error("Failed to save annotations");
       // Clear the saved tracking since save failed
       delete lastSavedAnnotations.current[slideId];
     }
@@ -465,6 +506,18 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
           </div>
         )}
       </div>
+
+      {/* Delete Slide Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteSlideId !== null}
+        onOpenChange={(open) => !open && setDeleteSlideId(null)}
+        onConfirm={confirmDeleteSlide}
+        title="Delete Slide"
+        description="Are you sure you want to delete this slide? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
     </div>
   );
 }

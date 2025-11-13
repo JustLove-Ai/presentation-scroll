@@ -198,16 +198,7 @@ export function EditableSlideRenderer({
         color: themeColors.text,
       }}
     >
-      {slide.blocks && slide.blocks.length > 0 ? (
-        renderContent()
-      ) : (
-        <div className="h-full flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-gray-400 text-lg mb-2">Empty slide</p>
-            <p className="text-gray-300 text-sm">Select a template to get started</p>
-          </div>
-        </div>
-      )}
+      {renderContent()}
     </Card>
   );
 }

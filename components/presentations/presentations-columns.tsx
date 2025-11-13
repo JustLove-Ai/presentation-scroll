@@ -14,6 +14,8 @@ import {
 import { deletePresentation, duplicatePresentation } from "@/lib/actions/presentations";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { toast } from "sonner";
 
 export type Presentation = {
   id: string;
@@ -29,60 +31,79 @@ function ActionsCell({ presentation }: { presentation: Presentation }) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDuplicating, setIsDuplicating] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  const handleDelete = async () => {
-    if (confirm(`Are you sure you want to delete "${presentation.title}"?`)) {
-      setIsDeleting(true);
-      const result = await deletePresentation(presentation.id);
-      if (result.success) {
-        router.refresh();
-      } else {
-        alert("Failed to delete presentation");
-      }
-      setIsDeleting(false);
+  const handleDelete = () => {
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    setIsDeleting(true);
+    const result = await deletePresentation(presentation.id);
+    if (result.success) {
+      toast.success(`"${presentation.title}" deleted successfully`);
+      router.refresh();
+    } else {
+      toast.error("Failed to delete presentation");
     }
+    setIsDeleting(false);
+    setShowDeleteDialog(false);
   };
 
   const handleDuplicate = async () => {
     setIsDuplicating(true);
     const result = await duplicatePresentation(presentation.id);
     if (result.success) {
+      toast.success("Presentation duplicated successfully");
       router.refresh();
     } else {
-      alert("Failed to duplicate presentation");
+      toast.error("Failed to duplicate presentation");
     }
     setIsDuplicating(false);
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          className="h-8 w-8 p-0"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <span className="sr-only">Open menu</span>
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-        <DropdownMenuItem onClick={() => router.push(`/presentations/${presentation.id}/edit`)}>
-          <Edit className="mr-2 h-4 w-4" />
-          Open
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleDuplicate} disabled={isDuplicating}>
-          <Copy className="mr-2 h-4 w-4" />
-          {isDuplicating ? "Duplicating..." : "Duplicate"}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleDelete} disabled={isDeleting} className="text-red-600">
-          <Trash2 className="mr-2 h-4 w-4" />
-          {isDeleting ? "Deleting..." : "Delete"}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            className="h-8 w-8 p-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <span className="sr-only">Open menu</span>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+          <DropdownMenuItem onClick={() => router.push(`/presentations/${presentation.id}/edit`)}>
+            <Edit className="mr-2 h-4 w-4" />
+            Open
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleDuplicate} disabled={isDuplicating}>
+            <Copy className="mr-2 h-4 w-4" />
+            {isDuplicating ? "Duplicating..." : "Duplicate"}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={handleDelete} disabled={isDeleting} className="text-red-600">
+            <Trash2 className="mr-2 h-4 w-4" />
+            {isDeleting ? "Deleting..." : "Delete"}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onConfirm={confirmDelete}
+        title="Delete Presentation"
+        description={`Are you sure you want to delete "${presentation.title}"? This will permanently delete all slides and cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+      />
+    </>
   );
 }
 
