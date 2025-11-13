@@ -57,8 +57,27 @@ export async function getPresentation(id: string) {
       include: {
         theme: true,
         slides: {
-          include: {
+          select: {
+            id: true,
+            presentationId: true,
+            order: true,
+            layout: true,
+            background: true,
+            notes: true,
+            annotations: true, // ← CRITICAL: Must explicitly select JSON fields
+            createdAt: true,
+            updatedAt: true,
             blocks: {
+              select: {
+                id: true,
+                slideId: true,
+                type: true,
+                content: true,
+                order: true,
+                style: true,
+                createdAt: true,
+                updatedAt: true,
+              },
               orderBy: { order: "asc" },
             },
           },

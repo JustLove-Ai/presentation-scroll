@@ -71,8 +71,13 @@ export function AnnotationLayer({
   };
 
   const handleClose = async () => {
+    console.log('[AnnotationLayer] handleClose called, strokes count:', strokes.length);
     if (onSave) {
+      console.log('[AnnotationLayer] Calling onSave with', strokes.length, 'strokes');
       await onSave(strokes);
+      console.log('[AnnotationLayer] onSave completed');
+    } else {
+      console.log('[AnnotationLayer] WARNING: onSave is not defined!');
     }
     onClose();
   };
