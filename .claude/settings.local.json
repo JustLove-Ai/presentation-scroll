@@ -2,9 +2,45 @@
   "permissions": {
     "allow": [
       "Bash(npm install:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nAdd premium dark theme and UI improvements\n\n- Implement light/dark theme toggle with next-themes\n- Replace blue gradients with premium charcoal/near-black colors in dark mode\n- Update all UI components with sophisticated neutral color palette\n- Replace colorful image placeholders with grayscale SVGs\n- Fix template application bug that was duplicating blocks\n- Remove padding from slide cards for true full-bleed images\n- Simplify theme toggle to single button (light/dark only)\n- Add theme toggle to all major pages (presentations list, editor, viewer)\n- Update slide borders, badges, and navigation dots to use neutral colors\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npm run dev:*)",
+      "Bash(node -e:*)",
+      "Bash(npx prisma db seed)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(taskkill /F /PID 16912)",
+      "Bash(taskkill /F /PID 7780)",
+      "Bash(taskkill //F //PID 16912)",
+      "Bash(taskkill //F //PID 7780)",
+      "Bash(taskkill //F //PID 16272)",
+      "Bash(if exist \".next\\dev\\lock\" del \".next\\dev\\lock\")",
+      "Bash(taskkill:*)",
+      "Bash(test:*)",
+      "Bash(git commit:*)",
+      "Bash(cat:*)",
+      "Bash(export DATABASE_URL:*)",
+      "Bash(nul)",
+      "Bash(if exist \"nul\" del \"nul\")",
+      "Bash(npx shadcn@latest add sonner)",
+      "Bash(npx shadcn@latest add:*)",
+      "WebSearch",
+      "WebFetch(domain:platform.openai.com)",
+      "WebFetch(domain:www.datacamp.com)",
+      "Bash(copy:*)",
+      "Bash(npx prisma format:*)",
+      "Bash(set:*)",
+      "Bash(npx dotenv:*)",
+      "Bash(if not exist \"public\\images\" mkdir \"public\\images\")"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "shadcn"
+  ]
 }
