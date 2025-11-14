@@ -116,6 +116,7 @@ export function EditableBlock({
 
       case "image":
         const isFullBleed = defaultStyle?.position === "absolute";
+        const objectFit = defaultStyle?.objectFit || "contain";
         return (
           <div
             className={isFullBleed ? "relative" : "flex justify-center"}
@@ -127,10 +128,14 @@ export function EditableBlock({
               alt={content.alt || ""}
               className={
                 isFullBleed
-                  ? "w-full h-full object-cover cursor-pointer"
-                  : "max-w-full max-h-96 rounded-lg shadow-lg object-contain cursor-pointer"
+                  ? "w-full h-full cursor-pointer"
+                  : "max-w-full max-h-96 rounded-lg shadow-lg cursor-pointer"
               }
-              style={isFullBleed ? { position: "absolute", inset: 0, ...defaultStyle } : {}}
+              style={
+                isFullBleed
+                  ? { position: "absolute", inset: 0, objectFit, ...defaultStyle }
+                  : { objectFit, ...defaultStyle }
+              }
             />
           </div>
         );

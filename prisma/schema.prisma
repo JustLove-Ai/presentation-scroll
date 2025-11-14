@@ -105,3 +105,17 @@ model Template {
 
   @@map("templates")
 }
+
+// User's image library (AI generated or uploaded)
+model UserImage {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  url         String   // URL to the stored image
+  prompt      String?  // AI generation prompt (if AI generated)
+  source      String   // "ai" or "upload"
+  model       String?  // "gpt-image-1" etc.
+  alt         String?  // Alt text for accessibility
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("user_images")
+}

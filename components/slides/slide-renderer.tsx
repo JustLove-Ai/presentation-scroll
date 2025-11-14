@@ -55,7 +55,7 @@ export function SlideRenderer({
                 <img
                   src={imageBlocks[0].content.url}
                   alt={imageBlocks[0].content.alt || ""}
-                  className="absolute inset-0 w-full h-full object-cover"
+                  className="absolute inset-0 w-full h-full object-contain"
                 />
               )}
             </div>
@@ -71,7 +71,7 @@ export function SlideRenderer({
                 <img
                   src={imageBlocks[0].content.url}
                   alt={imageBlocks[0].content.alt || ""}
-                  className="absolute inset-0 w-full h-full object-cover"
+                  className="absolute inset-0 w-full h-full object-contain"
                 />
               )}
             </div>
@@ -81,6 +81,17 @@ export function SlideRenderer({
                 <BlockRenderer key={block.id} block={block} theme={theme} />
               ))}
             </div>
+          </div>
+        );
+
+      case "title-subtitle-image":
+        return (
+          <div className="h-full p-16 flex flex-col items-center justify-center">
+            {allBlocks.map((block: any) => (
+              <div key={block.id} className="w-full">
+                <BlockRenderer block={block} theme={theme} />
+              </div>
+            ))}
           </div>
         );
 
@@ -133,7 +144,7 @@ export function SlideRenderer({
 
   return (
     <Card
-      className="w-full aspect-[16/9] shadow-xl rounded-lg relative overflow-hidden border border-gray-200 dark:border-[#2a2a2a] !bg-white hover:shadow-2xl transition-shadow p-0"
+      className="w-full aspect-[16/9] shadow-xl rounded-lg relative overflow-hidden border border-gray-200 dark:border-[#2a2a2a] hover:shadow-2xl transition-shadow p-0"
       style={{
         ...backgroundStyle,
         color: themeColors.text,

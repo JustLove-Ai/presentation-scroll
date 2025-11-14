@@ -85,13 +85,14 @@ export function BlockRenderer({ block, theme }: BlockRendererProps) {
 
     case "image":
       const isFullBleed = defaultStyle?.position === "absolute";
+      const objectFit = defaultStyle?.objectFit || "contain";
       return (
         <div className={isFullBleed ? "" : "flex justify-center"} style={defaultStyle}>
           <img
             src={content.url}
             alt={content.alt || ""}
-            className={isFullBleed ? "w-full h-full object-cover" : "max-w-full max-h-96 rounded-lg shadow-lg object-contain"}
-            style={isFullBleed ? { position: "absolute", inset: 0 } : {}}
+            className={isFullBleed ? "w-full h-full" : "max-w-full max-h-96 rounded-lg shadow-lg"}
+            style={isFullBleed ? { position: "absolute", inset: 0, objectFit } : { objectFit }}
           />
         </div>
       );

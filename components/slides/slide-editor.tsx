@@ -196,36 +196,50 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
     }
     const slideCache = blockContentCache.current.get(selectedSlideId)!;
 
-    // Save current content to cache BEFORE deleting blocks
+    // Save current slide background (preserve design theme)
+    const currentBackground = slide.background;
+
+    // Save current content AND styles to cache BEFORE deleting blocks
+    const blockStyleCache = new Map<string, any>();
     if (slide.blocks && slide.blocks.length > 0) {
       slide.blocks.forEach((block: any) => {
         // Cache content by type, keep most recent
         slideCache.set(block.type, block.content);
+        // Cache styles to preserve design theme
+        blockStyleCache.set(block.type, block.style);
       });
 
       // Delete all existing blocks and wait for completion
       await Promise.all(slide.blocks.map((block: any) => deleteBlock(block.id)));
     }
 
-    // Update slide layout
+    // Update slide layout (preserve background to keep design theme)
     await updateSlide(selectedSlideId, {
       layout: template.layout,
+      background: currentBackground, // Keep existing background
     });
 
-    // Create blocks from template, using cached content when available
-    for (const blockData of template.defaultBlocks) {
+    // Create blocks from template in parallel, using cached content and styles when available
+    const blockCreations = template.defaultBlocks.map((blockData) => {
       // Check cache first - if user has edited content of this type, use it
       const cachedContent = slideCache.get(blockData.type);
       const contentToUse = cachedContent || blockData.content;
 
-      await createBlock({
+      // Use cached styles if available (preserves design theme)
+      const cachedStyle = blockStyleCache.get(blockData.type);
+      const styleToUse = cachedStyle || blockData.style;
+
+      return createBlock({
         slideId: selectedSlideId,
         type: blockData.type,
         content: contentToUse,
-        style: blockData.style,
+        style: styleToUse,
         order: blockData.order,
       });
-    }
+    });
+
+    // Wait for all blocks to be created in parallel
+    await Promise.all(blockCreations);
 
     toast.success("Template applied with your content preserved");
     router.refresh();
@@ -269,6 +283,13 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
     router.refresh();
   };
 
+  const handleBlockDelete = async (blockId: string) => {
+    await deleteBlock(blockId);
+    setSelectedBlockId(null); // Close the panel
+    toast.success("Block deleted");
+    router.refresh();
+  };
+
   // Apply design theme to current slide
   const handleApplyDesignToSlide = async (theme: DesignTheme) => {
     if (!selectedSlideId) return;
@@ -278,55 +299,86 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
 
     console.log('[Design] Applying theme:', theme.name, 'Background:', theme.background);
 
-    // Collect all update promises
+    // Helper to calculate updated style for a block
+    const calculateBlockStyle = (block: any) => {
+      const baseStyle = block.style || {};
+      const updatedStyle: any = {
+        // Preserve only essential non-theme properties
+        display: baseStyle.display === "none" ? "none" : undefined,
+        position: baseStyle.position,
+        // Set theme color
+        color: block.type === "heading" ? theme.headingColor || theme.textColor : theme.textColor,
+      };
+
+      // Apply title styling to headings
+      if (block.type === "heading" && theme.titleStyle) {
+        if (theme.titleStyle.underline) {
+          updatedStyle.borderBottom = `3px solid ${theme.accentColor}`;
+          updatedStyle.paddingBottom = "0.5rem";
+          updatedStyle.display = "inline-block";
+        }
+        if (theme.titleStyle.leftBar) {
+          updatedStyle.borderLeft = `4px solid ${theme.accentColor}`;
+          updatedStyle.paddingLeft = "1rem";
+        }
+        if (theme.titleStyle.background) {
+          updatedStyle.background = theme.titleStyle.background;
+          updatedStyle.padding = "1rem";
+          updatedStyle.borderRadius = "8px";
+        }
+      }
+
+      // Apply image borders
+      if (block.type === "image" && theme.imageBorder) {
+        updatedStyle.border = `${theme.imageBorder.width} solid ${theme.imageBorder.color}`;
+        updatedStyle.borderRadius = theme.imageBorder.radius || "0px";
+      }
+
+      // Remove undefined values
+      Object.keys(updatedStyle).forEach(key => {
+        if (updatedStyle[key] === undefined) {
+          delete updatedStyle[key];
+        }
+      });
+
+      return updatedStyle;
+    };
+
+    // OPTIMISTIC UPDATE - Update local state immediately
+    setPresentation((prev: any) => ({
+      ...prev,
+      slides: prev.slides.map((s: any) => {
+        if (s.id !== selectedSlideId) return s;
+
+        return {
+          ...s,
+          background: theme.background,
+          blocks: s.blocks?.map((block: any) => ({
+            ...block,
+            style: calculateBlockStyle(block),
+          })) || [],
+        };
+      }),
+    }));
+
+    // Collect all update promises - sync to server in background
     const updates: Promise<any>[] = [];
 
-    // Update slide background
     updates.push(
       updateSlide(selectedSlideId, {
         background: theme.background,
       })
     );
 
-    // Update all blocks with theme colors and styles
     if (slide.blocks && slide.blocks.length > 0) {
       for (const block of slide.blocks) {
-        const updatedStyle = {
-          ...block.style,
-          color: block.type === "heading" ? theme.headingColor || theme.textColor : theme.textColor,
-        };
-
-        // Apply title styling to headings
-        if (block.type === "heading" && theme.titleStyle) {
-          if (theme.titleStyle.underline) {
-            updatedStyle.borderBottom = `3px solid ${theme.accentColor}`;
-            updatedStyle.paddingBottom = "0.5rem";
-            updatedStyle.display = "inline-block";
-          }
-          if (theme.titleStyle.leftBar) {
-            updatedStyle.borderLeft = `4px solid ${theme.accentColor}`;
-            updatedStyle.paddingLeft = "1rem";
-          }
-          if (theme.titleStyle.background) {
-            updatedStyle.background = theme.titleStyle.background;
-            updatedStyle.padding = "1rem";
-            updatedStyle.borderRadius = "8px";
-          }
-        }
-
-        // Apply image borders
-        if (block.type === "image" && theme.imageBorder) {
-          updatedStyle.border = `${theme.imageBorder.width} solid ${theme.imageBorder.color}`;
-          updatedStyle.borderRadius = theme.imageBorder.radius || "0px";
-        }
-
+        const updatedStyle = calculateBlockStyle(block);
         updates.push(updateBlock(block.id, { style: updatedStyle }));
       }
     }
 
-    // Wait for all updates to complete
+    // Wait for all updates to complete, then refresh to sync with server
     await Promise.all(updates);
-
     console.log('[Design] All updates complete, refreshing...');
     router.refresh();
   };
@@ -337,59 +389,88 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
 
     console.log('[Design] Applying theme to all slides:', theme.name);
 
-    // Collect all update promises
+    // Helper to calculate updated style for a block
+    const calculateBlockStyle = (block: any) => {
+      const baseStyle = block.style || {};
+      const updatedStyle: any = {
+        // Preserve only essential non-theme properties
+        display: baseStyle.display === "none" ? "none" : undefined,
+        position: baseStyle.position,
+        // Set theme color
+        color: block.type === "heading" ? theme.headingColor || theme.textColor : theme.textColor,
+      };
+
+      // Apply title styling to headings
+      if (block.type === "heading" && theme.titleStyle) {
+        if (theme.titleStyle.underline) {
+          updatedStyle.borderBottom = `3px solid ${theme.accentColor}`;
+          updatedStyle.paddingBottom = "0.5rem";
+          updatedStyle.display = "inline-block";
+        }
+        if (theme.titleStyle.leftBar) {
+          updatedStyle.borderLeft = `4px solid ${theme.accentColor}`;
+          updatedStyle.paddingLeft = "1rem";
+        }
+        if (theme.titleStyle.background) {
+          updatedStyle.background = theme.titleStyle.background;
+          updatedStyle.padding = "1rem";
+          updatedStyle.borderRadius = "8px";
+        }
+      }
+
+      // Apply image borders
+      if (block.type === "image" && theme.imageBorder) {
+        updatedStyle.border = `${theme.imageBorder.width} solid ${theme.imageBorder.color}`;
+        updatedStyle.borderRadius = theme.imageBorder.radius || "0px";
+      }
+
+      // Remove undefined values
+      Object.keys(updatedStyle).forEach(key => {
+        if (updatedStyle[key] === undefined) {
+          delete updatedStyle[key];
+        }
+      });
+
+      return updatedStyle;
+    };
+
+    // OPTIMISTIC UPDATE - Update local state immediately for all slides
+    setPresentation((prev: any) => ({
+      ...prev,
+      slides: prev.slides.map((s: any) => ({
+        ...s,
+        background: theme.background,
+        blocks: s.blocks?.map((block: any) => ({
+          ...block,
+          style: calculateBlockStyle(block),
+        })) || [],
+      })),
+    }));
+
+    // Show success toast immediately (optimistic)
+    toast.success(`Applied "${theme.name}" to all slides`);
+
+    // Collect all update promises - sync to server in background
     const updates: Promise<any>[] = [];
 
     for (const slide of slides) {
-      // Update slide background
       updates.push(
         updateSlide(slide.id, {
           background: theme.background,
         })
       );
 
-      // Update all blocks in this slide
       if (slide.blocks && slide.blocks.length > 0) {
         for (const block of slide.blocks) {
-          const updatedStyle = {
-            ...block.style,
-            color: block.type === "heading" ? theme.headingColor || theme.textColor : theme.textColor,
-          };
-
-          // Apply title styling to headings
-          if (block.type === "heading" && theme.titleStyle) {
-            if (theme.titleStyle.underline) {
-              updatedStyle.borderBottom = `3px solid ${theme.accentColor}`;
-              updatedStyle.paddingBottom = "0.5rem";
-              updatedStyle.display = "inline-block";
-            }
-            if (theme.titleStyle.leftBar) {
-              updatedStyle.borderLeft = `4px solid ${theme.accentColor}`;
-              updatedStyle.paddingLeft = "1rem";
-            }
-            if (theme.titleStyle.background) {
-              updatedStyle.background = theme.titleStyle.background;
-              updatedStyle.padding = "1rem";
-              updatedStyle.borderRadius = "8px";
-            }
-          }
-
-          // Apply image borders
-          if (block.type === "image" && theme.imageBorder) {
-            updatedStyle.border = `${theme.imageBorder.width} solid ${theme.imageBorder.color}`;
-            updatedStyle.borderRadius = theme.imageBorder.radius || "0px";
-          }
-
+          const updatedStyle = calculateBlockStyle(block);
           updates.push(updateBlock(block.id, { style: updatedStyle }));
         }
       }
     }
 
-    // Wait for all updates to complete
+    // Wait for all updates to complete, then refresh to sync with server
     await Promise.all(updates);
-
     console.log('[Design] All slides updated, refreshing...');
-    toast.success(`Applied "${theme.name}" to all slides`);
     router.refresh();
   };
 
@@ -587,6 +668,7 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
                   block={selectedBlock}
                   onContentChange={(content) => handleBlockContentChange(selectedBlock.id, content)}
                   onStyleChange={(style) => handleBlockStyleChange(selectedBlock.id, style)}
+                  onDelete={() => handleBlockDelete(selectedBlock.id)}
                   onClose={() => setSelectedBlockId(null)}
                 />
               )}
