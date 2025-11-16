@@ -68,6 +68,7 @@ export async function updateSlide(
     background?: any;
     notes?: string;
     order?: number;
+    aiPrompt?: string;
   }
 ) {
   try {

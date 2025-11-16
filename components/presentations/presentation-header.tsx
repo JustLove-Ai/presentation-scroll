@@ -1,9 +1,11 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Edit, Share2, Download, Presentation as PresentationIcon, Pencil, Settings } from "lucide-react";
+import { ArrowLeft, Edit, Share2, Download, Presentation as PresentationIcon, Pencil, Settings, FileText, Sparkles, Info } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useState } from "react";
+import { PresentationInfoModal } from "@/components/presentation-info-modal";
 
 interface PresentationHeaderProps {
   presentation: any;
@@ -12,6 +14,10 @@ interface PresentationHeaderProps {
   mode?: "edit" | "present";
   showSettings?: boolean;
   onToggleSettings?: () => void;
+  onLoadTemplateClick?: () => void;
+  onGenerateAIClick?: () => void;
+  showLoadTemplate?: boolean;
+  showGenerateAI?: boolean;
 }
 
 export function PresentationHeader({
@@ -20,9 +26,14 @@ export function PresentationHeader({
   onAnnotateToggle,
   mode = "present",
   showSettings,
-  onToggleSettings
+  onToggleSettings,
+  onLoadTemplateClick,
+  onGenerateAIClick,
+  showLoadTemplate,
+  showGenerateAI
 }: PresentationHeaderProps) {
   const router = useRouter();
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 bg-white dark:bg-[#252525] border-b border-gray-200 dark:border-[#333333] shadow-sm">
@@ -49,6 +60,42 @@ export function PresentationHeader({
 
         <div className="flex items-center gap-2">
           <ThemeToggle />
+
+          {/* AI Features - Only in edit mode */}
+          {mode === "edit" && onLoadTemplateClick && (
+            <Button
+              variant={showLoadTemplate ? "default" : "outline"}
+              size="sm"
+              onClick={onLoadTemplateClick}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Load Template
+            </Button>
+          )}
+
+          {mode === "edit" && onGenerateAIClick && (
+            <Button
+              variant={showGenerateAI ? "default" : "outline"}
+              size="sm"
+              onClick={onGenerateAIClick}
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              Generate with AI
+            </Button>
+          )}
+
+          {/* Presentation Context Button */}
+          {mode === "edit" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowInfoModal(true)}
+              title="Presentation Context"
+            >
+              <Info className="h-4 w-4" />
+            </Button>
+          )}
+
           {onAnnotateToggle && (
             <Button
               variant={isAnnotating ? "default" : "outline"}
@@ -89,6 +136,13 @@ export function PresentationHeader({
           </Button>
         </div>
       </div>
+
+      {/* Presentation Info Modal */}
+      <PresentationInfoModal
+        presentation={presentation}
+        open={showInfoModal}
+        onOpenChange={setShowInfoModal}
+      />
     </header>
   );
 }

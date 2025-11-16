@@ -22,6 +22,7 @@ model Presentation {
   themeId     String?  @db.ObjectId
   theme       Theme?   @relation(fields: [themeId], references: [id])
   slides      Slide[]
+  aiContext   Json? // Stores: topic, audience, tone, keyMessage for AI generation
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -30,17 +31,20 @@ model Presentation {
 
 // Individual slide model
 model Slide {
-  id             String        @id @default(auto()) @map("_id") @db.ObjectId
-  presentationId String        @db.ObjectId
-  presentation   Presentation  @relation(fields: [presentationId], references: [id], onDelete: Cascade)
-  order          Int
-  layout         String        @default("blank") // blank, title, title-content, two-column, etc.
-  background     Json?         // { type: 'color' | 'gradient' | 'image', value: string }
-  blocks         SlideBlock[]
-  notes          String?
-  annotations    Json?         // Array of annotation strokes
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id                 String       @id @default(auto()) @map("_id") @db.ObjectId
+  presentationId     String       @db.ObjectId
+  presentation       Presentation @relation(fields: [presentationId], references: [id], onDelete: Cascade)
+  order              Int
+  layout             String       @default("blank") // blank, title, title-content, two-column, etc.
+  background         Json? // { type: 'color' | 'gradient' | 'image', value: string }
+  blocks             SlideBlock[]
+  notes              String?
+  annotations        Json? // Array of annotation strokes
+  templateId         String? // ID of script template used to generate this slide
+  templateSlideIndex Int? // Index of this slide within the template (for guidance)
+  aiPrompt           String? // AI prompt for generating this slide's content
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
   @@map("slides")
 }
@@ -50,10 +54,10 @@ model SlideBlock {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   slideId   String   @db.ObjectId
   slide     Slide    @relation(fields: [slideId], references: [id], onDelete: Cascade)
-  type      String   // text, heading, image, video, code, bullet-list, numbered-list, quote
-  content   Json     // Flexible content storage
+  type      String // text, heading, image, video, code, bullet-list, numbered-list, quote
+  content   Json // Flexible content storage
   order     Int
-  style     Json?    // Font, color, alignment, size, etc.
+  style     Json? // Font, color, alignment, size, etc.
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -62,19 +66,19 @@ model SlideBlock {
 
 // Theme/Design system
 model Theme {
-  id            String         @id @default(auto()) @map("_id") @db.ObjectId
-  name          String
-  description   String?
-  isDefault     Boolean        @default(false)
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  isDefault   Boolean @default(false)
 
   // Color palette
-  colors        Json           // { primary, secondary, accent, background, text, etc. }
+  colors Json // { primary, secondary, accent, background, text, etc. }
 
   // Typography
-  fonts         Json           // { heading, body, code }
+  fonts Json // { heading, body, code }
 
   // Layout defaults
-  spacing       Json?          // Padding, margins
+  spacing Json? // Padding, margins
 
   presentations Presentation[]
   templates     Template[]
@@ -86,36 +90,54 @@ model Theme {
 
 // Pre-built slide templates
 model Template {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
   name        String
   description String?
-  category    String   // business, education, creative, minimal, etc.
-  themeId     String?  @db.ObjectId
-  theme       Theme?   @relation(fields: [themeId], references: [id])
-  preview     String?  // URL to preview image
+  category    String // business, education, creative, minimal, etc.
+  themeId     String? @db.ObjectId
+  theme       Theme?  @relation(fields: [themeId], references: [id])
+  preview     String? // URL to preview image
 
   // Template structure (JSON with slide layouts and default content)
-  structure   Json
+  structure Json
 
-  isPremium   Boolean  @default(false)
-  isPublic    Boolean  @default(true)
+  isPremium Boolean @default(false)
+  isPublic  Boolean @default(true)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("templates")
 }
 
 // User's image library (AI generated or uploaded)
 model UserImage {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  url         String   // URL to the stored image
-  prompt      String?  // AI generation prompt (if AI generated)
-  source      String   // "ai" or "upload"
-  model       String?  // "gpt-image-1" etc.
-  alt         String?  // Alt text for accessibility
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  url       String // URL to the stored image
+  prompt    String? // AI generation prompt (if AI generated)
+  source    String // "ai" or "upload"
+  model     String? // "gpt-image-1" etc.
+  alt       String? // Alt text for accessibility
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("user_images")
+}
+
+// Script templates for AI-assisted presentation generation
+model ScriptTemplate {
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String
+  category    String // "webinar", "youtube", "sales", "educational", "pitch", etc.
+  isPublic    Boolean @default(true) // Public templates vs user-created
+  userId      String? // If user-created template
+
+  // Template structure with sections and slides
+  structure Json // Array of sections, each with slides using existing slide templates
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("script_templates")
 }

@@ -7,8 +7,11 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bold, Italic, Underline, Type, Palette, Highlighter, X, FileText } from "lucide-react";
+import { Bold, Italic, Underline, Type, Palette, Highlighter, X, FileText, Lightbulb, ChevronDown, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
+import { Card } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { toast } from "sonner";
 
 interface TextFormatPanelProps {
   block: any;
@@ -16,9 +19,14 @@ interface TextFormatPanelProps {
   onContentChange?: (content: any) => void;
   onSelectionFormat?: (command: string, value?: string) => void;
   onClose?: () => void;
+  templateGuidance?: {
+    purpose: string;
+    instruction: string;
+    aiPrompt: string;
+  } | null;
 }
 
-export function TextFormatPanel({ block, onStyleChange, onContentChange, onSelectionFormat, onClose }: TextFormatPanelProps) {
+export function TextFormatPanel({ block, onStyleChange, onContentChange, onSelectionFormat, onClose, templateGuidance }: TextFormatPanelProps) {
   const currentStyle = block.style || {};
   const currentContent = block.content || {};
 
@@ -27,6 +35,9 @@ export function TextFormatPanel({ block, onStyleChange, onContentChange, onSelec
   const [fontFamily, setFontFamily] = useState(currentStyle.fontFamily || "inherit");
   const [backgroundColor, setBackgroundColor] = useState(currentStyle.backgroundColor || "transparent");
   const [textContent, setTextContent] = useState(currentContent.text || "");
+  const [showGuidance, setShowGuidance] = useState(false);
+  const [showAiPrompt, setShowAiPrompt] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
 
   // Update state when block changes
   useEffect(() => {
@@ -96,6 +107,30 @@ export function TextFormatPanel({ block, onStyleChange, onContentChange, onSelec
     }
   };
 
+  // Generate content with AI
+  const handleGenerateWithAi = async () => {
+    if (!aiPrompt.trim()) {
+      toast.error("Please enter a prompt");
+      return;
+    }
+
+    toast.info("AI generation coming soon!");
+    setShowAiPrompt(false);
+
+    // TODO: Implement AI generation API call here
+    // const response = await fetch('/api/ai/generate-content', {
+    //   method: 'POST',
+    //   body: JSON.stringify({
+    //     prompt: aiPrompt,
+    //     context: textContent,
+    //     blockType: block.type
+    //   })
+    // });
+    // const data = await response.json();
+    // setTextContent(data.content);
+    // onContentChange?.({ ...currentContent, text: data.content });
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -138,10 +173,45 @@ export function TextFormatPanel({ block, onStyleChange, onContentChange, onSelec
         <TabsContent value="content" className="flex-1 overflow-hidden m-0">
           <ScrollArea className="h-full px-4 pb-4">
             <div className="space-y-4">
+              {/* AI Prompt */}
+              {showAiPrompt && (
+                <Card className="p-3">
+                  <div className="space-y-3">
+                    <Textarea
+                      id="ai-prompt"
+                      value={aiPrompt}
+                      onChange={(e) => setAiPrompt(e.target.value)}
+                      placeholder="Describe what you want to generate..."
+                      className="min-h-[100px] resize-none"
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="outline" size="sm" onClick={() => setShowAiPrompt(false)}>
+                        Cancel
+                      </Button>
+                      <Button size="sm" onClick={handleGenerateWithAi} disabled={!aiPrompt.trim()}>
+                        <Sparkles className="h-3.5 w-3.5 mr-1" />
+                        Generate
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
               <div>
-                <Label className="text-xs text-muted-foreground mb-2 block">
-                  Edit Text Content
-                </Label>
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-xs text-muted-foreground">
+                    Edit Text Content
+                  </Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAiPrompt(!showAiPrompt)}
+                    className="h-7 px-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 mr-1" />
+                    <span className="text-xs">AI</span>
+                  </Button>
+                </div>
                 <Textarea
                   value={textContent}
                   onChange={(e) => handleContentChange(e.target.value)}
@@ -153,6 +223,42 @@ export function TextFormatPanel({ block, onStyleChange, onContentChange, onSelec
                   Changes saved when you finish editing
                 </p>
               </div>
+
+              {/* Template Guidance (if this slide came from a template) */}
+              {templateGuidance && (
+                <Collapsible open={showGuidance} onOpenChange={setShowGuidance}>
+                  <Card className="bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900">
+                    <CollapsibleTrigger className="w-full p-3 flex items-center justify-between hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors">
+                      <div className="flex items-center gap-2">
+                        <Lightbulb className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                        <span className="text-sm font-medium">Template Guidance</span>
+                      </div>
+                      <ChevronDown className={`h-4 w-4 text-amber-600 dark:text-amber-500 transition-transform ${showGuidance ? 'rotate-180' : ''}`} />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="px-3 pb-3">
+                      <div className="space-y-3 mt-2">
+                        <div>
+                          <p className="text-xs font-semibold text-amber-900 dark:text-amber-100 mb-1">
+                            Purpose
+                          </p>
+                          <p className="text-xs text-amber-800 dark:text-amber-200">
+                            {templateGuidance.purpose}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-amber-900 dark:text-amber-100 mb-1">
+                            How to fill this out
+                          </p>
+                          <p className="text-xs text-amber-800 dark:text-amber-200">
+                            {templateGuidance.instruction}
+                          </p>
+                        </div>
+                      </div>
+                    </CollapsibleContent>
+                  </Card>
+                </Collapsible>
+              )}
+
 
               {/* Heading Level (only for heading blocks) */}
               {block.type === "heading" && (

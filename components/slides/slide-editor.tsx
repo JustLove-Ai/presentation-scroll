@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { createSlide, deleteSlide, updateSlide } from "@/lib/actions/slides";
 import { createBlock, updateBlock, deleteBlock } from "@/lib/actions/blocks";
 import { slideTemplates } from "@/lib/slide-templates";
+import { scriptTemplates } from "@/lib/script-templates";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EditableSlideRenderer } from "./editable-slide-renderer";
@@ -25,6 +26,8 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "sonner";
 import { DesignPanel } from "./design-panel";
 import { DesignTheme } from "@/lib/design-themes";
+import { LoadTemplatePanel } from "./load-template-panel";
+import { GenerateAIPanel } from "./generate-ai-panel";
 
 interface SlideEditorProps {
   presentation: any;
@@ -41,6 +44,8 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
   const [showSettings, setShowSettings] = useState(true);
   const [isAnnotating, setIsAnnotating] = useState(false);
   const [deleteSlideId, setDeleteSlideId] = useState<string | null>(null);
+  const [showLoadTemplate, setShowLoadTemplate] = useState(false);
+  const [showGenerateAI, setShowGenerateAI] = useState(false);
 
   // Local content cache - preserves user content across template changes
   const blockContentCache = useRef<Map<string, Map<string, any>>>(new Map());
@@ -105,6 +110,14 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
     }
     previousBlockId.current = selectedBlockId;
   }, [selectedBlockId, router]);
+
+  // Close template/AI panels when user starts editing a block
+  useEffect(() => {
+    if (selectedBlockId) {
+      setShowLoadTemplate(false);
+      setShowGenerateAI(false);
+    }
+  }, [selectedBlockId]);
 
   // Auto-save annotations before component unmounts (navigation away, page close, etc.)
   useEffect(() => {
@@ -247,6 +260,24 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
 
   const selectedSlide = slides.find((s: any) => s.id === selectedSlideId);
   const selectedBlock = selectedSlide?.blocks.find((b: any) => b.id === selectedBlockId);
+
+  // Get template guidance if this slide came from a template
+  const templateGuidance = selectedSlide?.templateId && selectedSlide?.templateSlideIndex !== undefined
+    ? (() => {
+        const template = scriptTemplates.find((t) => t.id === selectedSlide.templateId);
+        if (!template) return null;
+
+        // Flatten all slides from all sections
+        const allSlides = template.sections.flatMap((section) => section.slides);
+        const slideConfig = allSlides[selectedSlide.templateSlideIndex];
+
+        return slideConfig ? {
+          purpose: slideConfig.purpose,
+          instruction: slideConfig.instruction,
+          aiPrompt: slideConfig.aiPrompt,
+        } : null;
+      })()
+    : null;
 
   const handleBlockStyleChange = async (blockId: string, style: any) => {
     await updateBlock(blockId, { style });
@@ -544,6 +575,16 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
         onAnnotateToggle={handleAnnotateToggle}
         showSettings={showSettings}
         onToggleSettings={() => setShowSettings(!showSettings)}
+        showLoadTemplate={showLoadTemplate}
+        showGenerateAI={showGenerateAI}
+        onLoadTemplateClick={() => {
+          setShowLoadTemplate(!showLoadTemplate);
+          setShowGenerateAI(false);
+        }}
+        onGenerateAIClick={() => {
+          setShowGenerateAI(!showGenerateAI);
+          setShowLoadTemplate(false);
+        }}
       />
 
       {/* Main Editor Area */}
@@ -647,7 +688,9 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
         </div>
 
         {/* Right Sidebar - Context-Aware Panels */}
-        {showSettings && (
+        {showLoadTemplate && <LoadTemplatePanel presentationId={presentation.id} slides={slides} onClose={() => setShowLoadTemplate(false)} />}
+        {showGenerateAI && <GenerateAIPanel presentationId={presentation.id} aiContext={presentation.aiContext} onClose={() => setShowGenerateAI(false)} />}
+        {showSettings && !showLoadTemplate && !showGenerateAI && (
           <div className="w-80 bg-white dark:bg-[#252525] border-l border-gray-200 dark:border-[#333333] flex flex-col overflow-hidden">
             <AnimatePresence mode="wait">
               {/* Text Format Panel */}
@@ -658,6 +701,7 @@ export function SlideEditor({ presentation: initialPresentation }: SlideEditorPr
                   onContentChange={(content) => handleBlockContentChange(selectedBlock.id, content)}
                   onStyleChange={(style) => handleBlockStyleChange(selectedBlock.id, style)}
                   onClose={() => setSelectedBlockId(null)}
+                  templateGuidance={templateGuidance}
                 />
               )}
 
